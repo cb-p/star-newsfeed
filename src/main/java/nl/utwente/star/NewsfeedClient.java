@@ -103,7 +103,7 @@ public class NewsfeedClient implements AutoCloseable {
 
         try (NewsfeedClient client = new NewsfeedClient()) {
             // set manufacturer
-            String manufacturer = "Inixi";
+            String manufacturer = "Axini";
             System.out.println("Manufacturer: " + manufacturer);
             client.sendString("MANUFACTURER:" + manufacturer);
 
@@ -112,7 +112,10 @@ public class NewsfeedClient implements AutoCloseable {
             Message response = client.receive();
 
             // (receive available topics)
-            if (response instanceof ProtocolResponse pr && !pr.protocolVersion.equals("1.0")) {
+            // noinspection ConstantValue
+            if (response instanceof ProtocolResponse pr
+                    && !pr.protocolVersion.equals("1.0")
+                    && !manufacturer.equals("Logica") && !manufacturer.equals("Inixa")) {
                 client.receive();
             }
 
