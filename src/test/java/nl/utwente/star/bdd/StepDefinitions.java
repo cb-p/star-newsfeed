@@ -1,9 +1,10 @@
-package nl.utwente.star;
+package nl.utwente.star.bdd;
 
 import io.cucumber.java.After;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import nl.utwente.star.NewsfeedClient;
 import nl.utwente.star.message.Message;
 import nl.utwente.star.message.application.AvailableTopics;
 import nl.utwente.star.message.application.Notify;
