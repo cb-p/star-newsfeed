@@ -11,6 +11,7 @@ import nl.utwente.star.message.application.ProtocolResponse;
 import nl.utwente.star.message.application.SubscribeResponse;
 import nl.utwente.star.message.client.ProtocolRequest;
 import nl.utwente.star.message.client.SubscribeRequest;
+import nl.utwente.star.message.client.Unsubscribe;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -91,6 +92,11 @@ public class StepDefinitions {
         client.send(new SubscribeRequest(2, topics));
     }
 
+    @When("I unsubscribe to topics:")
+    public void i_unsubscribe_to_topics(List<String> topics) throws IOException {
+        client.send(new Unsubscribe());
+    }
+
     @Then("the server selected protocol version {string}")
     public void the_server_selected_protocol_version(String version) {
         assertThat(serverProtocolVersion).isNotNull().isEqualTo(version);
@@ -106,5 +112,8 @@ public class StepDefinitions {
         for (Notify notification : notificationsSinceSubscribing) {
             assertThat(notification.topic).isEqualTo(topic);
         }
+
     }
+
+
 }
