@@ -36,22 +36,16 @@ public class StepDefinitions {
                 Message message = client.waitAndReceive();
                 if (message == null) {
                     break;
-                }
-
-                switch (message) {
-                    case ProtocolResponse response -> serverProtocolVersion = response.protocolVersion;
-                    case AvailableTopics response -> availableTopics = response.topics;
-
+                } else if (message instanceof ProtocolResponse response) {
+                    serverProtocolVersion = response.protocolVersion;
+                } else if (message instanceof AvailableTopics response) {
+                    availableTopics = response.topics;
+                } else if (message instanceof SubscribeResponse) {
                     // FIXME: handle this response properly if needed.
-                    case SubscribeResponse _ -> notificationsSinceSubscribing.clear();
-
-                    case Notify response -> {
-                        if (!response.isHeartbeat()) {
-                            notificationsSinceSubscribing.add(response);
-                        }
-                    }
-
-                    default -> {
+                    notificationsSinceSubscribing.clear();
+                } else if (message instanceof Notify response) {
+                    if (!response.isHeartbeat()) {
+                        notificationsSinceSubscribing.add(response);
                     }
                 }
             }
