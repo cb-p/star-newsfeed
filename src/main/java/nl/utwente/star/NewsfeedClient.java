@@ -31,20 +31,36 @@ public class NewsfeedClient implements AutoCloseable {
         scanner.useDelimiter("<!>");
     }
 
+    public String encode(Message message) {
+        return GSON.toJson(new RawMessage(message));
+    }
+
     public void send(Message message) throws IOException {
         System.out.println("-> " + message);
-        String json = GSON.toJson(new RawMessage(message));
-        sendString(json);
+        sendString(encode(message));
     }
 
     public void sendString(String message) throws IOException {
         out.write((message + "<!>").getBytes(StandardCharsets.UTF_8));
     }
 
-    public Message waitAndReceive() {
+    public String waitAndReceiveString() {
         if (scanner.hasNext()) {
-            RawMessage raw = GSON.fromJson(scanner.next(), RawMessage.class);
-            Message message = raw.parse();
+            return scanner.next();
+        } else {
+            return null;
+        }
+    }
+
+    public Message decode(String message) {
+        RawMessage raw = GSON.fromJson(message, RawMessage.class);
+        return raw.parse();
+    }
+
+    public Message waitAndReceive() {
+        String msg = waitAndReceiveString();
+        if (msg != null) {
+            Message message = decode(msg);
             System.out.println("<- " + message);
             return message;
         } else {
