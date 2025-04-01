@@ -3,14 +3,14 @@ package nl.utwente.star.message.client;
 import com.google.gson.annotations.SerializedName;
 import nl.utwente.star.message.Message;
 
-import java.util.Arrays;
+import java.util.List;
 
 /// SUBSCR-02
 public class SubscribeRequest extends Message.Request {
     @SerializedName("Topics")
-    public String[] topics;
+    public List<String> topics;
 
-    public SubscribeRequest(int correlationId, String... topics) {
+    public SubscribeRequest(int correlationId, List<String> topics) {
         super(correlationId);
         this.topics = topics;
     }
@@ -18,7 +18,7 @@ public class SubscribeRequest extends Message.Request {
     @Override
     public String toString() {
         return "SubscribeRequest{" +
-                "topics=" + Arrays.toString(topics) +
+                "topics=" + topics +
                 ", correlationId=" + correlationId +
                 '}';
     }

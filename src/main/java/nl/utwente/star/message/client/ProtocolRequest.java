@@ -3,14 +3,14 @@ package nl.utwente.star.message.client;
 import com.google.gson.annotations.SerializedName;
 import nl.utwente.star.message.Message;
 
-import java.util.Arrays;
+import java.util.List;
 
 /// SESSION-01
 public class ProtocolRequest extends Message.Request {
     @SerializedName("ProtocolVersions")
-    public String[] protocolVersions;
+    public List<String> protocolVersions;
 
-    public ProtocolRequest(int correlationId, String... protocolVersions) {
+    public ProtocolRequest(int correlationId, List<String> protocolVersions) {
         super(correlationId);
         this.protocolVersions = protocolVersions;
     }
@@ -18,7 +18,7 @@ public class ProtocolRequest extends Message.Request {
     @Override
     public String toString() {
         return "ProtocolRequest{" +
-                "protocolVersions=" + Arrays.toString(protocolVersions) +
+                "protocolVersions=" + protocolVersions +
                 ", correlationId=" + correlationId +
                 '}';
     }

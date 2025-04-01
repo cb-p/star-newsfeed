@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Scanner;
 
 public class NewsfeedClient implements AutoCloseable {
@@ -40,14 +41,14 @@ public class NewsfeedClient implements AutoCloseable {
         out.write((message + "<!>").getBytes(StandardCharsets.UTF_8));
     }
 
-    public Message receive() {
+    public Message waitAndReceive() {
         if (scanner.hasNext()) {
             RawMessage raw = GSON.fromJson(scanner.next(), RawMessage.class);
             Message message = raw.parse();
             System.out.println("<- " + message);
             return message;
         } else {
-            throw new RuntimeException("no more messages.");
+            return null;
         }
     }
 
@@ -103,30 +104,30 @@ public class NewsfeedClient implements AutoCloseable {
 
         try (NewsfeedClient client = new NewsfeedClient()) {
             // set manufacturer
-            String manufacturer = "Axini";
+            String manufacturer = "Inixa";
             System.out.println("Manufacturer: " + manufacturer);
             client.sendString("MANUFACTURER:" + manufacturer);
 
             // request protocol
-            client.send(new ProtocolRequest(1, "3.0", "2.0", "1.0"));
-            Message response = client.receive();
+            client.send(new ProtocolRequest(1, List.of("3.0", "2.0", "1.0")));
+            Message response = client.waitAndReceive();
 
             // (receive available topics)
             // noinspection ConstantValue
             if (response instanceof ProtocolResponse pr
                     && !pr.protocolVersion.equals("1.0")
                     && !manufacturer.equals("Logica") && !manufacturer.equals("Inixa")) {
-                client.receive();
+                client.waitAndReceive();
             }
 
             // subscribe
             // topics: ["general","breaking","sport","weather","culture","europe","funny"]
-            client.send(new SubscribeRequest(2, "general"));
-            client.receive();
+            client.send(new SubscribeRequest(2, List.of("general")));
+            client.waitAndReceive();
 
             // receive all messages after
             while (true) {
-                client.receive();
+                client.waitAndReceive();
             }
         }
     }
