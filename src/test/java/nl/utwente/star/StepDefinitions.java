@@ -92,9 +92,10 @@ public class StepDefinitions {
         client.send(new SubscribeRequest(2, topics));
     }
 
-    @When("I unsubscribe to topics:")
-    public void i_unsubscribe_to_topics(List<String> topics) throws IOException {
+    @When("I unsubscribe")
+    public void i_unsubscribe_to_topics() throws IOException {
         client.send(new Unsubscribe());
+        notificationsSinceSubscribing.clear();
     }
 
     @Then("the server selected protocol version {string}")
@@ -112,6 +113,13 @@ public class StepDefinitions {
         for (Notify notification : notificationsSinceSubscribing) {
             assertThat(notification.topic).isEqualTo(topic);
         }
+
+    }
+    @Then("there should be no more notifications")
+    public void there_should_be_no_more_notifications() {
+
+        assertThat(notificationsSinceSubscribing.size()).isEqualTo(0);
+
 
     }
 
