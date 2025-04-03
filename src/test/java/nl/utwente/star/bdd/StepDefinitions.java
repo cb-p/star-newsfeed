@@ -6,10 +6,7 @@ import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import nl.utwente.star.NewsfeedClient;
 import nl.utwente.star.message.Message;
-import nl.utwente.star.message.application.AvailableTopics;
-import nl.utwente.star.message.application.Notify;
-import nl.utwente.star.message.application.ProtocolResponse;
-import nl.utwente.star.message.application.SubscribeResponse;
+import nl.utwente.star.message.application.*;
 import nl.utwente.star.message.client.ProtocolRequest;
 import nl.utwente.star.message.client.SubscribeRequest;
 import nl.utwente.star.message.client.Unsubscribe;
@@ -28,6 +25,8 @@ public class StepDefinitions {
     // These are null if the server hasn't sent us it.
     private String serverProtocolVersion = null;
     private List<String> availableTopics = null;
+    private boolean faultMessageReceived = false;
+    private int heartbeatCount = 0;
 
     // Notifications since subscribing.
     private final List<Notify> notificationsSinceSubscribing = new ArrayList<>();
@@ -40,14 +39,22 @@ public class StepDefinitions {
                     break;
                 } else if (message instanceof ProtocolResponse response) {
                     serverProtocolVersion = response.protocolVersion;
-                } else if (message instanceof AvailableTopics response) {
+                    notificationsSinceSubscribing.clear();
+                } else if (message instanceof Fault) {
+                    faultMessageReceived = true;
+                }
+                else if (message instanceof AvailableTopics response) {
                     availableTopics = response.topics;
                 } else if (message instanceof SubscribeResponse) {
                     // FIXME: handle this response properly if needed.
                     notificationsSinceSubscribing.clear();
+                    heartbeatCount = 0;
                 } else if (message instanceof Notify response) {
                     if (!response.isHeartbeat()) {
                         notificationsSinceSubscribing.add(response);
+
+                    } else {
+                        heartbeatCount++;
                     }
                 }
             }
@@ -99,6 +106,11 @@ public class StepDefinitions {
         notificationsSinceSubscribing.clear();
     }
 
+    @Then("the server responds with a fault message")
+    public void the_server_responds_with_fault_message() throws IOException {
+        assertThat(faultMessageReceived).isTrue();
+    }
+
     @Then("the server selected protocol version {string}")
     public void the_server_selected_protocol_version(String version) {
         assertThat(serverProtocolVersion).isNotNull().isEqualTo(version);
@@ -122,6 +134,16 @@ public class StepDefinitions {
         assertThat(notificationsSinceSubscribing.size()).isEqualTo(0);
 
 
+    }
+
+    @Then("we should have received {int} heartbeats")
+    public void we_should_have_received_heartbeats(int num) {
+        assertThat(heartbeatCount).isEqualTo(num);
+    }
+
+    @Then("the first message is a snapshot")
+    public void the_first_message_is_a_snapshot() throws IOException {
+        assertThat(notificationsSinceSubscribing.getFirst().isSnapshot()).isTrue();
     }
 
 

@@ -34,3 +34,25 @@ Feature: Subscribing
        When I unsubscribe
        And I wait 10 seconds
        Then there should be no more notifications
+
+  # SUBSCR-04
+  Scenario:
+    Given I am connected to the NewsFeed server
+    And I successfully request protocol version "2.0"
+    When I subscribe to topics:
+      | empty |
+    And I wait 10 seconds
+    Then we should have received 3 heartbeats
+
+
+  # SNAPSHOT-01
+  Scenario: 
+  Given I am connected to the NewsFeed server
+    And I successfully request protocol version "2.0"
+    When I subscribe to topics:
+    | empty |
+    And I wait 15 seconds
+    And I subscribe to topics:
+    | general |
+    And I wait 3 seconds
+    Then the first message is a snapshot
