@@ -35,4 +35,9 @@ public class Notify extends Message {
     public boolean isHeartbeat() {
         return topic.isEmpty() && content.isEmpty() && !isSnapshot;
     }
+
+    /// SNAPSHOT-01
+    public boolean isSnapshot() {
+        return isSnapshot;
+    }
 }
