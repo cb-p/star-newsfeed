@@ -1,8 +1,5 @@
 package nl.utwente.star;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import nl.utwente.star.message.Message;
 import nl.utwente.star.message.application.*;
 import nl.utwente.star.message.client.ProtocolRequest;
@@ -17,8 +14,6 @@ import java.util.List;
 import java.util.Scanner;
 
 public class NewsfeedClient implements AutoCloseable {
-    private static final Gson GSON = new GsonBuilder().create();
-
     private final Socket socket;
     private final OutputStream out;
     private final Scanner scanner;
@@ -31,13 +26,9 @@ public class NewsfeedClient implements AutoCloseable {
         scanner.useDelimiter("<!>");
     }
 
-    public String encode(Message message) {
-        return GSON.toJson(new RawMessage(message));
-    }
-
     public void send(Message message) throws IOException {
         System.out.println("-> " + message);
-        sendString(encode(message));
+        sendString(new RawMessage(message).toJson());
     }
 
     public void sendString(String message) throws IOException {
@@ -52,15 +43,10 @@ public class NewsfeedClient implements AutoCloseable {
         }
     }
 
-    public Message decode(String message) {
-        RawMessage raw = GSON.fromJson(message, RawMessage.class);
-        return raw.parse();
-    }
-
     public Message waitAndReceive() {
         String msg = waitAndReceiveString();
         if (msg != null) {
-            Message message = decode(msg);
+            Message message = RawMessage.parseJson(msg).parse();
             System.out.println("<- " + message);
             return message;
         } else {
@@ -71,38 +57,6 @@ public class NewsfeedClient implements AutoCloseable {
     @Override
     public void close() throws Exception {
         socket.close();
-    }
-
-    /// See README of the newsfeed server.
-    public static class RawMessage {
-        public String name;
-        public JsonElement parameters;
-
-        @SuppressWarnings("unused")
-        private RawMessage() {
-        }
-
-        public RawMessage(Message message) {
-            this.name = message.getClass().getSimpleName();
-            this.parameters = GSON.toJsonTree(message);
-        }
-
-        public Message parse() {
-            return switch (this.name) {
-                case "AvailableTopics" -> GSON.fromJson(this.parameters, AvailableTopics.class);
-                case "Fault" -> GSON.fromJson(this.parameters, Fault.class);
-                case "NewTopicAvailable" -> GSON.fromJson(this.parameters, NewTopicAvailable.class);
-                case "Notify" -> GSON.fromJson(this.parameters, Notify.class);
-                case "ProtocolResponse" -> GSON.fromJson(this.parameters, ProtocolResponse.class);
-                case "SubscribeResponse" -> GSON.fromJson(this.parameters, SubscribeResponse.class);
-
-                case "ProtocolRequest" -> GSON.fromJson(this.parameters, ProtocolRequest.class);
-                case "SubscribeRequest" -> GSON.fromJson(this.parameters, SubscribeRequest.class);
-
-                default ->
-                        throw new RuntimeException("unknown message with name '" + this.name + "' and parameters " + this.parameters);
-            };
-        }
     }
 
     public static void main(String[] args) throws Exception {

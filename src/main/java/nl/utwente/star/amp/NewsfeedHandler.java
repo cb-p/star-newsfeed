@@ -5,14 +5,10 @@ import PluginAdapter.Api.LabelOuterClass.Label;
 import PluginAdapter.Api.LabelOuterClass.Label.Parameter.Value;
 import com.axini.adapter.generic.AxiniProtobuf;
 import com.axini.adapter.generic.Handler;
+import com.google.gson.*;
 import com.google.protobuf.ByteString;
 import nl.utwente.star.NewsfeedClient;
-import nl.utwente.star.message.Message;
-import nl.utwente.star.message.application.*;
-import nl.utwente.star.message.client.ProtocolRequest;
-import nl.utwente.star.message.client.StopSession;
-import nl.utwente.star.message.client.SubscribeRequest;
-import nl.utwente.star.message.client.Unsubscribe;
+import nl.utwente.star.RawMessage;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -30,31 +26,15 @@ public class NewsfeedHandler extends Handler {
                     break;
                 }
 
-                Message message = client.decode(raw);
-                System.out.println("<- " + message);
-
-                Label label;
-                if (message instanceof ProtocolResponse response) {
-                    label = NewsfeedLabels.protocolResponse(response.correlationId, response.protocolVersion);
-                } else if (message instanceof AvailableTopics response) {
-                    label = NewsfeedLabels.availableTopics(response.topics);
-                } else if (message instanceof SubscribeResponse response) {
-                    label = NewsfeedLabels.subscribeResponse(response.correlationId, response.topics);
-                } else if (message instanceof Notify response) {
-                    if (response.isHeartbeat()) {
-                        label = NewsfeedLabels.heartbeat();
-                    } else {
-                        label = NewsfeedLabels.notify(response.sequenceNumber, response.isSnapshot, response.topic, response.content);
-                    }
-                } else if (message instanceof NewTopicAvailable response) {
-                    label = NewsfeedLabels.newTopicAvailable(response.topic);
-                } else if (message instanceof Fault) {
-                    label = NewsfeedLabels.fault();
-                } else {
-                    System.out.println("  - unhandled!");
-                    sendErrorToAmp("unhandled message " + message);
-                    continue;
-                }
+                RawMessage message = RawMessage.parseJson(raw);
+                Label label = AxiniProtobuf.createLabel(
+                        message.name, "newsfeed",
+                        Label.LabelType.RESPONSE,
+                        message.parameters
+                                .entrySet().stream()
+                                .map(entry -> AxiniProtobuf.createParameter(
+                                        entry.getKey(), valueFromJsonElement(entry.getValue())))
+                                .toList());
 
                 long timestamp = AxiniProtobuf.timestamp();
                 adapterCore.sendResponse(label, ByteString.copyFromUtf8(raw), timestamp);
@@ -107,29 +87,18 @@ public class NewsfeedHandler extends Handler {
 
     @Override
     public ByteString stimulate(Label stimulus) {
-        Message message;
-        switch (stimulus.getLabel()) {
-            case "protocol_request" -> message = new ProtocolRequest(
-                    (int) param(stimulus, "correlation_id").getInteger(),
-                    param(stimulus, "protocol_versions").getArray().getValuesList()
-                            .stream().map(Value::getString).toList()
-            );
-            case "stop_session" -> message = new StopSession();
-            case "unsubscribe" -> message = new Unsubscribe();
-            case "subscribe_request" -> message = new SubscribeRequest(
-                    (int) param(stimulus, "correlation_id").getInteger(),
-                    param(stimulus, "topics").getArray().getValuesList()
-                            .stream().map(Value::getString).toList()
-            );
-            default -> {
-                sendErrorToAmp("unknown stimulus " + stimulus.getLabel());
-                return ByteString.EMPTY;
-            }
+        String name = stimulus.getLabel();
+
+        JsonObject parameters = new JsonObject();
+        for (Label.Parameter parameter : stimulus.getParametersList()) {
+            parameters.add(parameter.getName(), jsonElementFromValue(parameter.getValue()));
         }
 
-        System.out.println("-> " + message);
+        RawMessage message = new RawMessage(name, parameters);
+        String raw = message.toJson();
 
-        String raw = client.encode(message);
+        System.out.println("-> " + raw);
+
         ByteString physicalLabel = ByteString.copyFromUtf8(raw);
         long timestamp = AxiniProtobuf.timestamp();
 
@@ -149,31 +118,48 @@ public class NewsfeedHandler extends Handler {
 
     @Override
     public List<Label> getSupportedLabels() {
-        List<Label> labels = new ArrayList<>();
-
-        // Stimuli
-        labels.add(NewsfeedLabels.protocolRequest(0, List.of("foo")));
-        labels.add(NewsfeedLabels.stopSession());
-        labels.add(NewsfeedLabels.unsubscribe());
-        labels.add(NewsfeedLabels.subscribeRequest(0, List.of("foo")));
-
-        // Responses
-        labels.add(NewsfeedLabels.protocolResponse(0, "foo"));
-        labels.add(NewsfeedLabels.availableTopics(List.of("foo")));
-        labels.add(NewsfeedLabels.subscribeResponse(0, List.of("foo")));
-        labels.add(NewsfeedLabels.heartbeat());
-        labels.add(NewsfeedLabels.notify(0, false, "foo", "bar"));
-        labels.add(NewsfeedLabels.newTopicAvailable("foo"));
-        labels.add(NewsfeedLabels.fault());
-
-        return labels;
+        // This is going to produce errors, but that's not important.
+        return List.of();
     }
 
-    public Value param(Label label, String name) {
-        return label.getParametersList().stream()
-                .filter(param -> param.getName().equals(name))
-                .map(Label.Parameter::getValue)
-                .findFirst().orElse(null);
+    public Value valueFromJsonElement(JsonElement element) {
+        if (element instanceof JsonArray array) {
+            List<JsonElement> values = new ArrayList<>();
+            array.iterator().forEachRemaining(values::add);
+
+            return Value.newBuilder()
+                    .setArray(Value.Array.newBuilder()
+                            .addAllValues(values.stream().map(this::valueFromJsonElement).toList())
+                            .build())
+                    .build();
+        } else if (element instanceof JsonPrimitive primitive) {
+            if (primitive.isBoolean()) {
+                return Value.newBuilder().setBoolean(primitive.getAsBoolean()).build();
+            } else if (primitive.isString()) {
+                return Value.newBuilder().setString(primitive.getAsString()).build();
+            } else if (primitive.isNumber()) {
+                return Value.newBuilder().setInteger(primitive.getAsInt()).build();
+            }
+        }
+
+        return Value.newBuilder().build();
+    }
+
+    public JsonElement jsonElementFromValue(Value value) {
+        return switch (value.getTypeCase()) {
+            case STRING -> new JsonPrimitive(value.getString());
+            case INTEGER -> new JsonPrimitive(value.getInteger());
+            case DECIMAL -> new JsonPrimitive(value.getDecimal());
+            case BOOLEAN -> new JsonPrimitive(value.getBoolean());
+            case ARRAY -> {
+                JsonArray array = new JsonArray();
+                value.getArray().getValuesList().stream()
+                        .map(this::jsonElementFromValue)
+                        .forEach(array::add);
+                yield array;
+            }
+            default -> JsonNull.INSTANCE;
+        };
     }
 
     public void sendReadyToAmp() {
