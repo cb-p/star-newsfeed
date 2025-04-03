@@ -28,6 +28,7 @@ dependencies {
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("org.junit.platform:junit-platform-suite")
     testImplementation("org.assertj:assertj-core")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
