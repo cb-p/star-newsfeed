@@ -13,6 +13,7 @@ import nl.utwente.star.message.client.Unsubscribe;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -29,7 +30,7 @@ public class StepDefinitions {
     private int heartbeatCount = 0;
 
     // Notifications since subscribing.
-    private final List<Notify> notificationsSinceSubscribing = new ArrayList<>();
+    private final LinkedList<Notify> notificationsSinceSubscribing = new LinkedList<>();
 
     private void setupReceiveThread() {
         new Thread(() -> {
