@@ -4,10 +4,9 @@ import nl.utwente.star.Config;
 import nl.utwente.star.NewsfeedClient;
 import nl.utwente.star.message.Message;
 import nl.utwente.star.message.application.Notify;
+import nl.utwente.star.message.application.SubscribeResponse;
 import nl.utwente.star.message.client.ProtocolRequest;
 import nl.utwente.star.message.client.SubscribeRequest;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -77,7 +76,10 @@ public class NewsMessagesTest {
         //change subscription topic
         subscription = new SubscribeRequest(correlationId,List.of("culture"));
         newsfeedClient.send(subscription);
-        newsfeedClient.waitAndReceive();
+        Message subscriptionResponse;
+        do {
+            subscriptionResponse = newsfeedClient.waitAndReceive();
+        } while (!(subscriptionResponse instanceof SubscribeResponse));
         //wait until we receive or first message from the new topic
         Notify notification;
         do {
