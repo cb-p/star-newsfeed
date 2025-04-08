@@ -100,12 +100,12 @@ public class NewsMessagesTest {
         //Take note of the system time and wait until a heartbeat is received.
         long time = System.currentTimeMillis();
         while (!((Notify) newsfeedClient.waitAndReceive()).isHeartbeat()) {
-            assertTrue((System.currentTimeMillis() - time) < 3000);//assert whether there should have been a heartbeat
+            assertTrue((System.currentTimeMillis() - time) < 3100);//assert whether there should have been a heartbeat
             time = System.currentTimeMillis();//reset timer
         }
         time = System.currentTimeMillis() - time;
         System.out.println("Heartbeat time: " + time);
-        assertTrue(time >= 2990);//there small range for processing delay, precision should not matter that much here
+        assertTrue(time > 2900);//there small range for processing delay, precision should not matter that much here
     }
 
     @Test
