@@ -14,8 +14,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TopicsTest {
 
@@ -62,12 +61,26 @@ public class TopicsTest {
         Message protocolRequest = new ProtocolRequest(correlationId,versions);
         newsfeedClient.send(protocolRequest);
         newsfeedClient.waitAndReceive();
-        //wait until we receive a NewTopicAvailable message
-        Message message;
-        do {
-            message = newsfeedClient.waitAndReceive();
-        } while (!(message instanceof NewTopicAvailable));
-        //asserts whether the message contains a topic name.
-        assertFalse(((NewTopicAvailable) message).topic.isEmpty());
+
+        boolean complete = false;
+        Thread wait = new Thread(() -> {
+            //wait until we receive a NewTopicAvailable message
+            Message message;
+            do {
+                message = newsfeedClient.waitAndReceive();
+            } while (!(message instanceof NewTopicAvailable));
+            //asserts whether the message contains a topic name.
+            assertFalse(((NewTopicAvailable) message).topic.isEmpty());
+        });
+        wait.start();
+        long startTime = System.currentTimeMillis();
+        while (!complete) {
+            if (!wait.isAlive()) {
+                complete = true;
+            } else if ((System.currentTimeMillis() - startTime) > 30000) {
+                fail("No additional topics have been received in the timeout period");
+                complete = true;
+            }
+        }
     }
 }
