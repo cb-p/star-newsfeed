@@ -1,5 +1,6 @@
 package nl.utwente.star.junit;
 
+import nl.utwente.star.Config;
 import nl.utwente.star.NewsfeedClient;
 import nl.utwente.star.message.Message;
 import nl.utwente.star.message.application.ProtocolResponse;
@@ -25,6 +26,7 @@ public class ProtocolNegotiationTest {
     public void setupClient() throws IOException {
         correlationId = random.nextInt();
         newsfeedClient = new NewsfeedClient();
+        newsfeedClient.sendString("MANUFACTURER:" + Config.get("sut.manufacturer"));
     }
 
     @Test
