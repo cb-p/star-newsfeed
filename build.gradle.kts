@@ -20,6 +20,14 @@ dependencies {
     implementation("com.google.protobuf:protobuf-java:4.29.3")
     implementation("com.google.protobuf:protobuf-java-util:4.29.3")
 
+
+
+    testImplementation("io.cucumber:cucumber-java:7.14.0")
+    testImplementation("io.cucumber:cucumber-junit-platform-engine:7.14.0")
+    testImplementation("org.junit.platform:junit-platform-suite:1.9.3")
+
+
+
     testImplementation(platform("org.junit:junit-bom:5.12.1"))
     testImplementation(platform("io.cucumber:cucumber-bom:7.21.1"))
     testImplementation(platform("org.assertj:assertj-bom:3.27.3"))
@@ -31,6 +39,8 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.8.1")
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+
 }
 
 protobuf {
