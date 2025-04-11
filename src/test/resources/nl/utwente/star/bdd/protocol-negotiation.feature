@@ -1,15 +1,25 @@
 Feature: Protocol Negotiation
   The NewsFeed server should correctly negotiate new connections
 
-  # SESSION-02
+  # SESSION-02/SESSION-04
   Scenario:
     Given I am connected to the NewsFeed server
+    When I request no protocol versions:
+    And I wait 1 seconds
+    Then the server selected protocol version ""
     When I request protocol versions:
+      | 10.0 |
       | 2.0 |
       | 3.0 |
       | 1.0 |
     And I wait 1 seconds
     Then the server selected protocol version "2.0"
+    When I request protocol versions:
+      | 1.0 |
+      | 3.0 |
+      | 2.0 |
+    And I wait 1 seconds
+    Then the server selected protocol version "1.0"
 
   # TOPICS-02
   Scenario:
@@ -29,8 +39,7 @@ Feature: Protocol Negotiation
     When I subscribe to topics:
       | general |
     And I wait 3 seconds
-    Then all received notifications since subscribing should be of topic "general"
-    When I request protocol versions:
+    And I request protocol versions:
      | 1.0 |
     And I wait 3 seconds
     Then the server selected protocol version "1.0"

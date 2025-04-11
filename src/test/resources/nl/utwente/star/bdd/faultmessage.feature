@@ -15,3 +15,4 @@ Feature: Faultmessage
     When I unsubscribe
     And I wait 1 seconds
     Then the server responds with a fault message
+

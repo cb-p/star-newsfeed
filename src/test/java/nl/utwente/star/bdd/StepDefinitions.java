@@ -19,7 +19,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class StepDefinitions {
-    private static final String MANUFACTURER = "Axini";
+    private static final String MANUFACTURER = "Inixa";
 
     private NewsfeedClient client;
 
@@ -89,6 +89,11 @@ public class StepDefinitions {
     @When("I request protocol versions:")
     public void i_request_protocol_versions(List<String> versions) throws IOException {
         client.send(new ProtocolRequest(1, versions));
+    }
+
+    @When("I request no protocol versions:")
+    public void i_request_protocol_versions() throws IOException {
+        client.send(new ProtocolRequest(1, new ArrayList<>()));
     }
 
     @When("I wait {int} seconds")

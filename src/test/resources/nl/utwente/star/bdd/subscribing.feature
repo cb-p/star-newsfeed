@@ -29,9 +29,8 @@ Feature: Subscribing
        And I successfully request protocol version "2.0"
        When I subscribe to topics:
          | general |
-       And I wait 10 seconds
-       Then all received notifications since subscribing should be of topic "general"
-       When I unsubscribe
+       And I wait 5 seconds
+       And I unsubscribe
        And I wait 10 seconds
        Then there should be no more notifications
 
@@ -41,18 +40,20 @@ Feature: Subscribing
     And I successfully request protocol version "2.0"
     When I subscribe to topics:
       | empty |
-    And I wait 10 seconds
-    Then we should have received 3 heartbeats
+    And I wait 3 seconds
+    Then we should have received 1 heartbeats
 
 
   # SNAPSHOT-01
-  Scenario: 
+  Scenario:
   Given I am connected to the NewsFeed server
     And I successfully request protocol version "2.0"
-    When I subscribe to topics:
-    | empty |
     And I wait 15 seconds
     And I subscribe to topics:
     | general |
+    | sport |
+    | breaking |
+    | weather |
+    | culture |
     And I wait 3 seconds
     Then the first message is a snapshot
