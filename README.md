@@ -10,6 +10,7 @@ Bas van de Weerd 	s2372975
 BDD Testing 
 Scenarios:              \src\test\resources
 Step Definition Files:  \src\test\java\nl\utwente\star\bdd\StepDefinitions.java
+Results:                \test_reports\BDD
 
 Automatated Testing:    
 Tests:                  \src\test\java\nl\utwente\star\junit
