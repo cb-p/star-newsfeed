@@ -1,0 +1,280 @@
+$bugs_configuration = {
+  console1: false, # sequence numbers are not incremented
+  logica1: false, # doesn't send available topics
+  enews1: false, # doesn't recognize protocol version 2.1
+  newswire1: false, # always selects highest protocol version
+  smartsoft1: false, # sends notify for all topics
+  smartsoft2: false, # selects 1.0 on empty protocol versions
+  testgroup1: false, # does not reset sequence numbers on new subscriberequest
+  trustedtechnologies1: false, # sends available topics on any version
+  universolutions1: false, # responds to subscription with all topics
+}
+
+$inixa = true
+if $inixa
+    $bugs_configuration[:console1] = true
+    $bugs_configuration[:logica1] = true
+    $bugs_configuration[:enews1] = true
+    $bugs_configuration[:newswire1] = true
+    $bugs_configuration[:smartsoft1] = true
+    $bugs_configuration[:smartsoft2] = true
+    $bugs_configuration[:trustedtechnologies1] = true
+end
+
+def bug(key)
+  $bugs_configuration.fetch(key)
+end
+
+# result = [should select, highest version] (for the NewsWire bug)
+PROTOCOL_VERSION_SELECTIONS = {
+  ['2.0', '1.0'] => ['2.0', '2.0'],
+  ['1.0', '2.0'] => ['1.0', '2.0'],
+  ['3.0', '1.0'] => ['3.0', '3.0'],
+  ['4.0', '1.0'] => ['1.0', '1.0'],
+  ['2.0', '2.1'] => ['2.0', '2.1'],
+  ['2.1', '3.0'] => ['2.1', '3.0'],
+  ['4.0', '5.0'] => ['', ''],
+  [] => ['', ''],
+}
+
+TOPIC_SELECTIONS = {
+    ['general'] => ['general'],
+    ['breaking'] => ['breaking'],
+    ['sport'] => ['sport'],
+    ['weather'] => ['weather'],
+    ['culture'] => ['culture'],
+
+    ['general', 'weather'] => ['general', 'weather'],
+    ['breaking', 'sport'] => ['breaking', 'sport'],
+    ['culture', 'weather'] => ['culture', 'weather'],
+    ['general', 'culture'] => ['general', 'culture'],
+    ['general', 'breaking'] => ['general', 'breaking'],
+
+    ['sport', 'culture', 'weather'] => ['sport', 'culture', 'weather'],
+    ['breaking', 'weather', 'general'] => ['breaking', 'weather', 'general'],
+    ['culture', 'sport', 'breaking'] => ['culture', 'sport', 'breaking'],
+    ['general', 'sport', 'weather', 'breaking'] => ['general', 'sport', 'weather', 'breaking'],
+    ['breaking', 'culture', 'sport', 'weather'] => ['breaking', 'culture', 'sport', 'weather'],
+    ['general', 'breaking', 'sport', 'culture', 'weather'] => ['general', 'breaking', 'sport', 'culture', 'weather'],
+    ['sport', 'weather', 'general', 'culture'] => ['sport', 'weather', 'general', 'culture'],
+    ['breaking', 'culture', 'general', 'sport'] => ['breaking', 'culture', 'general', 'sport'],
+    ['weather', 'general', 'sport', 'culture', 'breaking'] => ['weather', 'general', 'sport', 'culture', 'breaking'],
+    ['general', 'sport', 'culture'] => ['general', 'sport', 'culture'],
+    ['breaking', 'weather', 'sport', 'culture'] => ['breaking', 'weather', 'sport', 'culture'],
+    ['general', 'breaking', 'weather'] => ['general', 'breaking', 'weather'],
+    ['sport', 'breaking', 'culture', 'general'] => ['sport', 'breaking', 'culture', 'general'],
+    ['weather', 'breaking', 'sport'] => ['weather', 'breaking', 'sport'],
+
+    ['general', 'not_a_topic'] => ['general'],
+    ['not_a_topic'] => [],
+    [''] => [],
+    [] => [],
+}
+
+response_filter ['NewTopicAvailable']
+
+external 'newsfeed'
+internal 'notify_channel'
+
+process('notify_process') {
+  timeout 3.4
+
+  channel('newsfeed') {
+    response 'Notify', {"SequenceNumber"=>:integer, "IsSnapshot"=>:boolean, "Topic"=>:string, "Content"=>:string}
+  }
+
+  channel('notify_channel') {
+    stimulus 'n_subscribe', {"topics"=>[:string]}
+    stimulus 'n_unsubscribe'
+  }
+
+  var 'm_subscribed_topics', [:string]
+  var 'm_sequence_number', :integer, 0
+  var 'm_last_snapshot', :boolean, true
+
+state 's_unsubscribed'
+  repeat {
+    o {
+      receive 'n_subscribe',
+        update: 'm_subscribed_topics = topics; m_last_snapshot = true';
+
+      if not bug(:testgroup1)
+        update 'm_sequence_number = 0'
+      end
+
+      stop_repetition
+    }
+
+    o { receive 'n_unsubscribe' }
+  }
+
+  repeat {
+    o {
+      # Heartbeat
+      send 'Notify',
+        constraint: 'IsSnapshot == false && Topic == "" && Content == ""
+                  && SequenceNumber == m_sequence_number'
+
+      if not bug(:console1)
+        update 'm_sequence_number = m_sequence_number + 1'
+      end
+    }
+
+    o {
+      # Notify
+      if bug(:smartsoft1)
+        send 'Notify',
+          constraint: 'SequenceNumber == m_sequence_number
+                    && (m_last_snapshot || !IsSnapshot)',
+          update: 'm_last_snapshot = IsSnapshot'
+      else
+        send 'Notify',
+          constraint: 'Topic in m_subscribed_topics
+                    && SequenceNumber == m_sequence_number
+                    && (m_last_snapshot || !IsSnapshot)',
+          update: 'm_last_snapshot = IsSnapshot'
+      end
+
+      if not bug(:console1)
+        update 'm_sequence_number = m_sequence_number + 1'
+      end
+    }
+
+    o {
+      receive 'n_subscribe',
+        update: 'm_subscribed_topics = topics; m_last_snapshot = true'
+
+      if not bug(:testgroup1)
+        update 'm_sequence_number = 0'
+      end
+    }
+
+    o { receive 'n_unsubscribe', update: 'm_subscribed_topics = []'; goto 's_unsubscribed' }
+  }
+}
+
+process('main') {
+  timeout 1 + 1
+
+  channel('newsfeed') {
+    stimulus 'ProtocolRequest', {"ProtocolVersions"=>[:string], "CorrelationId"=>:integer}
+    stimulus 'SubscribeRequest', {"CorrelationId"=>:integer, "Topics"=>[:string]}
+    stimulus 'Unsubscribe'
+    stimulus 'StopSession'
+
+    response 'ProtocolResponse', {"ProtocolVersion"=>:string, "CorrelationId"=>:integer}
+    response 'AvailableTopics', {"Topics"=>[:string]}
+    response 'SubscribeResponse', {"CorrelationId"=>:integer, "Topics"=>[:string]}
+
+    response 'NewTopicAvailable'
+
+    response 'Fault'
+
+    # Bug testing: sending responses as stimuli.
+    stimulus 'ProtocolResponse', {"ProtocolVersion"=>:string, "CorrelationId"=>:integer}
+    stimulus 'Notify', {"SequenceNumber"=>:integer, "IsSnapshot"=>:boolean, "Topic"=>:string, "Content"=>:string}
+    stimulus 'AvailableTopics', {"Topics"=>[:string]}
+    stimulus 'SubscribeResponse', {"CorrelationId"=>:integer, "Topics"=>[:string]}
+    stimulus 'Fault'
+  }
+
+  channel('notify_channel') {
+    response 'n_subscribe', {"topics"=>[:string]}
+    response 'n_unsubscribe'
+  }
+
+  var 'm_current_protocol_version', :string
+  var 'm_topics', [:string]
+  var 'm_subscribed', :boolean, false
+
+  behavior('b_protocol_negotiation', :non_terminating) {
+    var 'm_protocol_correlation_id', :integer
+
+    # Protocol Negotiation
+    choice {
+      PROTOCOL_VERSION_SELECTIONS.each do |versions, results|
+        result = results[bug(:newswire1) ? 1 : 0]
+        next if bug(:enews1) and result == "2.1"
+        next if bug(:smartsoft2) and versions.length() == 0
+
+        o {
+          receive 'ProtocolRequest',
+            constraint: "ProtocolVersions == #{versions.inspect} && CorrelationId != :void",
+            update: 'm_protocol_correlation_id = CorrelationId'
+
+          send 'n_unsubscribe';
+
+          send 'ProtocolResponse',
+            constraint: "ProtocolVersion == #{result.inspect}
+                      && CorrelationId == m_protocol_correlation_id",
+            update: 'm_current_protocol_version = ProtocolVersion;
+                     m_subscribed = false'
+
+          _if 'm_current_protocol_version == ""',
+          _then { behave_as 'b_protocol_negotiation' }
+        }
+      end
+    }
+
+    if not bug(:logica1)
+      # Available topics
+      _if 'm_current_protocol_version in ["2.0", "2.1", "3.0"]',
+      _then { send 'AvailableTopics', update: 'm_topics = Topics' }
+    end
+
+    if bug(:trustedtechnologies1)
+      _if 'm_current_protocol_version == "1.0"',
+      _then { send 'AvailableTopics', update: 'm_topics = Topics' }
+    end
+
+    behave_as 'b_session'
+  }
+
+  behavior('b_no_session', :non_terminating) {
+    repeat {
+      o { behave_as 'b_protocol_negotiation' }
+      o { receive 'SubscribeRequest', constraint: "Topics != :void && CorrelationId != :void"; send 'Fault' }
+    }
+  }
+
+  behavior('b_session', :non_terminating) {
+    var 'm_subscribe_correlation_id', :integer
+
+    repeat {
+      o { receive 'StopSession'; send 'n_unsubscribe'; behave_as 'b_no_session' }
+      o { behave_as 'b_protocol_negotiation' }
+
+      o { receive 'Unsubscribe', constraint: 'm_subscribed == true', update: 'm_subscribed = false'; send 'n_unsubscribe' }
+      o { receive 'Unsubscribe', constraint: 'm_subscribed == false' }
+
+      TOPIC_SELECTIONS.each do |topics, result|
+        # Subscribe Negotiation
+        o {
+          if bug(:universolutions1)
+            send 'n_subscribe', constraint: "topics == m_topics"
+            receive 'SubscribeRequest',
+              constraint: "Topics == #{topics.inspect}
+                        && CorrelationId != :void",
+              update: 'm_subscribe_correlation_id = CorrelationId'
+            send 'SubscribeResponse',
+              constraint: "CorrelationId == m_subscribe_correlation_id",
+              update: 'm_subscribed = true'
+          else
+            send 'n_subscribe', constraint: "topics == #{result.inspect}"
+            receive 'SubscribeRequest',
+              constraint: "Topics == #{topics.inspect}
+                        && CorrelationId != :void",
+              update: 'm_subscribe_correlation_id = CorrelationId'
+            send 'SubscribeResponse',
+              constraint: "CorrelationId == m_subscribe_correlation_id
+                        && Topics =~ #{result.inspect}",
+              update: 'm_subscribed = true'
+          end
+
+        }
+      end
+    }
+  }
+
+  behave_as 'b_no_session'
+}
